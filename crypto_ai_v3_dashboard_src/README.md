@@ -1,109 +1,98 @@
-# Crypto AI V3 — Multi-Coin Autonomous Paper Trader
+# Crypto AI V4 — Adaptive Multi-Brain Paper Trader
 
-V3 runs continuously against **real public crypto market data** while all capital and fills are virtual.
-There is intentionally **no live-order adapter** in this build.
+V4 is a paper-only autonomous crypto research system. It consumes live public market data but does **not** expose any authenticated order methods.
 
-## What changed from V2
+## What V4 changes
 
-- Dynamic multi-coin universe scanner.
-- Scans liquid spot markets rather than being limited to BTC/ETH.
-- Direction-neutral candidate ranking: liquidity, market activity, order-book depth and spread.
-- Filters stablecoins, leveraged-token variants, illiquid books and wide spreads.
-- Smaller/less-liquid markets automatically get a lower risk multiplier.
-- Multi-position portfolio limits.
-- Persistent virtual wallet/positions across restarts.
-- Emergency hard stop outside the AI.
-- Live portfolio dashboard with allocation pie, open/closed P&L and trade history.\n- Downloadable closed-trade CSV report.\n- Cloud-ready FastAPI status/report endpoints.
-- Dockerfile + Railway deployment config.
-
-## Architecture
+V3 evaluated markets one at a time. V4 first builds opportunities across the active universe, then globally ranks them and allocates capital to the best available set.
 
 ```text
-All spot markets
+Liquid spot markets
       |
       v
-Universe Scanner
-(volume / activity / depth / spread)
+Universe Scanner (broad activity/liquidity filter)
       |
       v
-Top 8 active markets
+Market snapshots: OHLCV + L2 + public trades
       |
-      v
-Market Reader
-OHLCV + L2 book + public trades
-      |
-      v
-Learned return models + regime model
-      |
-      v
-Decision Agent
-BUY / HOLD / EXIT / DO NOTHING
-      |
-      v
-Risk Governor
-position / portfolio / daily loss / drawdown / liquidity caps
-      |
-      v
-Virtual Paper Exchange
-fees + slippage + hard stop
+      +------------------------+
+      |                        |
+      v                        v
+TRADER brain              HUNTER brain
+learned returns           volume/momentum breakout
+      |                        |
+      +-----------+------------+
+                  v
+         Trade Memory weighting
+                  v
+           Global Ranking
+                  v
+     Correlation + Risk Governor
+                  v
+      Dynamic capital allocation
+                  v
+           Paper Exchange
+       hard stop + trailing stop
+                  v
+         Outcome -> memory
 ```
 
-## Run locally
+## Default research guardrails
 
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-uvicorn app:app --host 0.0.0.0 --port 8080
+- Starting paper capital: `$10,000`
+- Maximum total exposure: `60%`
+- Maximum single-position exposure: `15%`
+- No hard maximum count of positions
+- Minimum useful position: `2.5%`
+- Daily loss stop: `2%`
+- Portfolio drawdown kill switch: `8%`
+- Cooldown after exit: `30 minutes`
+
+The 60% value is a **cap, not a target**. V4 can hold 100% cash when no opportunity meets its standards.
+
+## Learning behavior
+
+V4 stores the market state around decisions and each entry. Closed trades retain their engine, score, confidence, setup key and entry context. The memory layer applies only bounded ranking multipliers (0.75x–1.25x) after enough observations. It does not rewrite or deploy its own code.
+
+If `LEARN_FROM_V3=true` and `/data/crypto_ai_v3.sqlite3` exists, V4 also uses old symbol-level outcomes as weak evidence. V4 itself writes to `/data/crypto_ai_v4.sqlite3` and `/data/paper_state_v4.json`, so the V3 dataset remains separate.
+
+The system also stores market snapshots. Once a symbol has enough snapshots, V4 can train the included 30s/120s/300s microstructure model and use its forecast as one component of Hunter scoring.
+
+## Railway
+
+Use the existing Dockerfile/Railway setup. Mount the Railway Volume at `/data` and set:
+
+```text
+DATA_DIR=/data
 ```
 
-Then open:
+Useful optional variables:
 
+```text
+MAX_TOTAL_EXPOSURE_PCT=0.60
+MAX_POSITION_PCT=0.15
+RISK_PER_TRADE=0.0045
+ACTIVE_UNIVERSE_SIZE=12
+SCANNER_PREFILTER_SIZE=60
+COOLDOWN_SECONDS=1800
+TRADER_MIN_SCORE=58
+HUNTER_MIN_SCORE=68
+LEARN_FROM_V3=true
+```
+
+## Endpoints
+
+- `/dashboard`
+- `/health`
 - `/status`
+- `/report`
 - `/universe`
+- `/opportunities`
 - `/decisions`
 - `/trades`
+- `/closed-trades`
+- `/export/trades.csv`
 
-## Railway deployment
+## Important
 
-1. Put this folder in a GitHub repository.
-2. Create a Railway project from the repository.
-3. Railway detects the root `Dockerfile` automatically.
-4. Add a persistent Railway Volume mounted at `/data`.
-5. Add the environment variables from `.env.example` in Railway Variables.
-6. Make sure `DATA_DIR=/data`.
-7. Generate a Railway public domain.
-8. Open `/health` and then `/status`.
-
-The service command comes from the Dockerfile and launches FastAPI plus the background paper-trading agent in the same process.
-
-## Starting settings
-
-- Virtual capital: `$10,000`
-- Active universe: `8` markets
-- Maximum simultaneous positions: `4`
-- Max single-position exposure: `10%`
-- Max total exposure: `25%`
-- Risk budget per new trade: `0.35%`
-- Daily loss stop: `1.5%`
-- Portfolio drawdown kill-switch: `8%`
-
-These are research settings, not claims of optimality.
-
-## Why internal paper money instead of exchange testnet first?
-
-The system consumes the live public market and simulates execution locally. That lets us evaluate the strategy against real prices/order books without giving it trading credentials. Exchange testnet is useful later for validating authenticated order-routing code.
-
-## Before real money
-
-Do not add live execution until we have enough forward data to evaluate:
-
-- total return after estimated fees/slippage,
-- maximum drawdown,
-- profit factor,
-- turnover,
-- results by market-cap/liquidity tier,
-- results by market regime,
-- out-of-sample stability,
-- performance after multiple service restarts.
+This build is for forward paper testing and research. A profitable paper result is not proof that the same strategy will remain profitable with real execution, larger size or changing market conditions.

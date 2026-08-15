@@ -31,14 +31,15 @@ async def lifespan(app: FastAPI):
     agent.storage.close()
 
 
-app = FastAPI(title="Crypto AI V3 — Paper Trading", lifespan=lifespan)
+app = FastAPI(title="Crypto AI V4 — Adaptive Paper Portfolio", lifespan=lifespan)
 
 
 @app.get("/")
 def root():
     return {
-        "name": "Crypto AI V3",
+        "name": "Crypto AI V4",
         "mode": "PAPER_ONLY",
+        "architecture": "Trader + Hunter + global ranking + adaptive allocation + trade memory",
         "dashboard_url": "/dashboard",
         "report_url": "/report",
         "status_url": "/status",
@@ -52,7 +53,7 @@ def dashboard():
 
 @app.get("/health")
 def health():
-    return {"ok": True, "mode": "paper"}
+    return {"ok": True, "mode": "paper", "version": 4}
 
 
 @app.get("/status")
@@ -68,6 +69,11 @@ def report():
 @app.get("/universe")
 def universe():
     return [c.to_dict() for c in agent.universe]
+
+
+@app.get("/opportunities")
+def opportunities(limit: int = 50):
+    return agent.storage.recent_opportunities(max(1, min(limit, 500)))
 
 
 @app.get("/decisions")
@@ -90,9 +96,9 @@ def export_trades_csv():
     rows = agent.storage.closed_trades(100000)
     buffer = io.StringIO()
     fields = [
-        "timestamp_ms", "symbol", "entry_price", "exit_price", "qty",
-        "gross_pnl", "fees_total", "pnl_net", "return_pct",
-        "entry_time", "exit_time", "reason",
+        "timestamp_ms", "symbol", "engine", "score", "confidence",
+        "entry_price", "exit_price", "qty", "gross_pnl", "fees_total",
+        "pnl_net", "return_pct", "entry_time", "exit_time", "reason", "setup_key",
     ]
     writer = csv.DictWriter(buffer, fieldnames=fields)
     writer.writeheader()
@@ -101,5 +107,5 @@ def export_trades_csv():
     return StreamingResponse(
         iter([buffer.getvalue().encode("utf-8")]),
         media_type="text/csv",
-        headers={"Content-Disposition": "attachment; filename=crypto_ai_closed_trades.csv"},
+        headers={"Content-Disposition": "attachment; filename=crypto_ai_v4_closed_trades.csv"},
     )

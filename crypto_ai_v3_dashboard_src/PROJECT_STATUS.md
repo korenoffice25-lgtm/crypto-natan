@@ -1,50 +1,43 @@
-# Crypto AI V3 — Build Status
+# Crypto AI V4 — Build Status
 
-## Runtime
-- [x] Docker container
-- [x] FastAPI health/status service
-- [x] Railway config
-- [x] Persistent virtual portfolio state
-- [x] SQLite decision/trade journal
+## Core architecture
+- [x] Global market ranking before execution
+- [x] Learned-return Trader brain
+- [x] Breakout/Momentum Hunter brain
+- [x] Dynamic capital allocation up to configured portfolio exposure cap
+- [x] No hard maximum number of positions; portfolio capacity is exposure/risk driven
+- [x] Correlation guard between newly accepted opportunities
+- [x] Per-symbol cooldown and repeat-entry penalty
 
-## Market selection
-- [x] Dynamic multi-coin scanner
-- [x] Liquid spot-market filtering
-- [x] Stablecoin/leveraged-token exclusions
-- [x] Spread filter
-- [x] Order-book depth filter
-- [x] Direction-neutral opportunity score
-- [x] Per-market risk multiplier
+## Learning / memory
+- [x] Full market snapshots stored in SQLite
+- [x] Entry context saved inside each paper position and propagated to the closed trade
+- [x] Bounded performance memory by symbol / engine / setup
+- [x] Optional soft learning from the existing V3 SQLite history
+- [x] Microstructure dataset collection
+- [x] Auto-train 30s/120s/300s microstructure model after enough snapshots
+- [ ] Automatic promotion of entirely new self-generated models (intentionally disabled)
 
-## AI
-- [x] Multi-horizon learned return model
-- [x] Unsupervised regime model
-- [x] L2 order-book state
-- [x] Public trade-flow state
-- [x] BUY / HOLD / EXIT / DO_NOTHING
-- [x] Model uncertainty/cost penalty
-
-## Portfolio safety
-- [x] Max positions
-- [x] Max position exposure
-- [x] Max total exposure
+## Risk / exits
+- [x] 60% default max total exposure
+- [x] 15% default max single-position exposure
+- [x] Risk-per-trade sizing
 - [x] Daily loss stop
 - [x] Drawdown kill switch
-- [x] Emergency hard stop outside AI
+- [x] Dynamic hard stop
+- [x] Trailing stop with separate Trader/Hunter behavior
 - [x] Fees + slippage simulation
 
-## Not yet enabled
-- [ ] Authenticated exchange testnet execution
-- [ ] Real-money execution
-- [ ] Automatic model promotion based on forward results
-- [ ] Full historical L2 microstructure training
+## Execution
+- [x] Real public market data
+- [x] Internal paper exchange only
+- [ ] Live-order adapter (intentionally absent)
 
-## Reporting dashboard
-- [x] Live portfolio value in dollars
-- [x] Realized and unrealized P&L in dollars
-- [x] Return percentages
-- [x] Open-position table
-- [x] Closed-trade audit trail
-- [x] Win/loss statistics and profit factor
-- [x] Portfolio allocation pie
-- [x] CSV export for closed trades
+## Dashboard
+- [x] Capital utilization
+- [x] Open position count
+- [x] Trader/Hunter label
+- [x] Score + confidence
+- [x] Top ranked opportunities
+- [x] Trailing stop visibility
+- [x] Closed-trade audit trail + CSV export
