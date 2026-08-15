@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crypto AI V3 Dashboard</title>
+<style>
+:root{--bg:#081018;--panel:#101a24;--panel2:#14212d;--text:#eaf1f7;--muted:#8fa2b3;--line:#223445;--good:#35d07f;--bad:#ff626d;--warn:#ffbd59}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:Inter,system-ui,-apple-system,"Segoe UI",sans-serif}.wrap{max-width:1500px;margin:auto;padding:24px}.top{display:flex;justify-content:space-between;gap:16px;align-items:center;margin-bottom:20px}h1{margin:0;font-size:26px}.badge{padding:7px 11px;border:1px solid var(--line);border-radius:999px;color:var(--warn);font-size:12px;font-weight:800}.grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px}.card{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}.label{font-size:12px;color:var(--muted);margin-bottom:7px}.value{font-size:25px;font-weight:800}.good{color:var(--good)}.bad{color:var(--bad)}.main{display:grid;grid-template-columns:1.05fr 2fr;gap:12px;margin-top:12px}.pieRow{display:flex;align-items:center;gap:22px}.pie{width:220px;height:220px;border-radius:50%;background:#1b2b39;flex:none}.legend{display:grid;gap:9px;width:100%}.legendLine{display:flex;justify-content:space-between;gap:10px;color:var(--muted);font-size:13px}.legendLine b{color:var(--text)}.section{margin-top:12px}.sectionTitle{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}.sectionTitle h2{font-size:16px;margin:0}.btn,button{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 11px;color:var(--text);text-decoration:none;cursor:pointer}.tableWrap{overflow:auto;border:1px solid var(--line);border-radius:14px}table{width:100%;border-collapse:collapse;background:var(--panel);font-size:13px}th,td{padding:11px 12px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}th:first-child,td:first-child{text-align:left}th{color:var(--muted);font-weight:600;background:var(--panel2)}tr:last-child td{border-bottom:none}.empty{color:var(--muted);padding:22px;text-align:center}.foot{color:var(--muted);font-size:12px;margin-top:14px}
+@media(max-width:1100px){.grid{grid-template-columns:repeat(3,1fr)}.main{grid-template-columns:1fr}}@media(max-width:650px){.wrap{padding:14px}.grid{grid-template-columns:repeat(2,1fr)}.pieRow{flex-direction:column}.pie{width:190px;height:190px}.top{align-items:flex-start;flex-direction:column}}
+</style></head>
+<body><div class="wrap">
+<div class="top"><div><h1>Crypto AI V3</h1><div style="color:var(--muted);margin-top:5px">Autonomous paper portfolio · live market data</div></div><div class="badge">PAPER MONEY ONLY</div></div>
+<div class="grid">
+<div class="card"><div class="label">Portfolio value</div><div class="value" id="equity">$0</div></div>
+<div class="card"><div class="label">Total P&L</div><div class="value" id="totalPnl">$0</div></div>
+<div class="card"><div class="label">Total return</div><div class="value" id="totalReturn">0%</div></div>
+<div class="card"><div class="label">Realized P&L</div><div class="value" id="realized">$0</div></div>
+<div class="card"><div class="label">Open P&L</div><div class="value" id="unrealized">$0</div></div>
+<div class="card"><div class="label">Win rate</div><div class="value" id="winRate">0%</div></div>
+</div>
+<div class="main">
+<div class="card"><div class="sectionTitle"><h2>Portfolio allocation</h2></div><div class="pieRow"><div id="pie" class="pie"></div><div id="legend" class="legend"></div></div></div>
+<div class="card"><div class="sectionTitle"><h2>Performance</h2><a class="btn" href="/export/trades.csv">Download trades CSV</a></div>
+<div class="grid" style="grid-template-columns:repeat(3,1fr)">
+<div><div class="label">Closed trades</div><div class="value" id="closedTrades">0</div></div>
+<div><div class="label">Profitable</div><div class="value" id="wins">0</div></div>
+<div><div class="label">Losing</div><div class="value" id="losses">0</div></div>
+<div><div class="label">Gross profit</div><div class="value good" id="grossProfit">$0</div></div>
+<div><div class="label">Gross loss</div><div class="value bad" id="grossLoss">$0</div></div>
+<div><div class="label">Profit factor</div><div class="value" id="profitFactor">0</div></div>
+</div></div></div>
+<div class="section card"><div class="sectionTitle"><h2>Open positions</h2><button onclick="refresh()">Refresh</button></div><div id="openTable"></div></div>
+<div class="section card"><div class="sectionTitle"><h2>Closed trades</h2><span style="color:var(--muted);font-size:12px">Net P&L includes fees</span></div><div id="closedTable"></div></div>
+<div class="foot">Dollar figures are USD-equivalent paper values using USDT-quoted markets. Refreshes every 5 seconds. No live-order credentials are used.</div>
+</div>
+<script>
+const money=v=>(Number(v||0)<0?"-$":"$")+Math.abs(Number(v||0)).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+const pct=v=>Number(v||0).toFixed(2)+"%";const num=v=>Number(v||0).toLocaleString(undefined,{maximumFractionDigits:5});const cls=v=>Number(v||0)>0?"good":Number(v||0)<0?"bad":"";
+const esc=s=>String(s??"").replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[m]));const date=s=>s?new Date(s).toLocaleString():"—";
+function metric(id,val,sign=null){const e=document.getElementById(id);e.textContent=val;if(sign!==null)e.className="value "+cls(sign)}
+function table(headers,rows){if(!rows.length)return'<div class="empty">No data yet.</div>';return'<div class="tableWrap"><table><thead><tr>'+headers.map(x=>'<th>'+x+'</th>').join('')+'</tr></thead><tbody>'+rows.join('')+'</tbody></table></div>'}
+function renderPie(items){const pal=["#4da3ff","#35d07f","#ffbd59","#b983ff","#ff626d","#54d6d6","#f58b47","#9bcf53","#d96bce","#7b8cff"];const total=items.reduce((a,x)=>a+Number(x.value||0),0);let a=0,s=[];items.forEach((x,i)=>{let st=total?a/total*360:0;a+=Number(x.value||0);let en=total?a/total*360:0;s.push(`${pal[i%pal.length]} ${st}deg ${en}deg`)});document.getElementById("pie").style.background=s.length?`conic-gradient(${s.join(",")})`:"#1b2b39";document.getElementById("legend").innerHTML=items.map((x,i)=>{let sh=total?Number(x.value||0)/total*100:0;return`<div class="legendLine"><span><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${pal[i%pal.length]};margin-right:7px"></span>${esc(x.label)}</span><b>${money(x.value)} · ${sh.toFixed(1)}%</b></div>`}).join("")}
+function renderOpen(r){document.getElementById("openTable").innerHTML=table(["Asset","Qty","Entry","Current","Value","Open P&L","Return","Hard stop","Opened"],r.map(p=>`<tr><td><b>${esc(p.symbol)}</b></td><td>${num(p.qty)}</td><td>${money(p.entry_price)}</td><td>${money(p.current_price)}</td><td>${money(p.market_value)}</td><td class="${cls(p.unrealized_pnl)}">${money(p.unrealized_pnl)}</td><td class="${cls(p.return_pct)}">${pct(p.return_pct)}</td><td>${money(p.stop_price)}</td><td>${date(p.entry_time)}</td></tr>`))}
+function renderClosed(r){document.getElementById("closedTable").innerHTML=table(["Asset","Entry","Exit","Qty","Fees","Net P&L","Return","Exit reason","Closed"],r.map(t=>`<tr><td><b>${esc(t.symbol)}</b></td><td>${t.entry_price==null?"—":money(t.entry_price)}</td><td>${money(t.exit_price)}</td><td>${num(t.qty)}</td><td>${t.fees_total==null?"—":money(t.fees_total)}</td><td class="${cls(t.pnl_net)}"><b>${money(t.pnl_net)}</b></td><td class="${cls(t.return_pct)}">${t.return_pct==null?"—":pct(t.return_pct)}</td><td>${esc(t.reason||"—")}</td><td>${date(t.exit_time||t.timestamp_ms)}</td></tr>`))}
+async function refresh(){try{const d=await(await fetch("/report",{cache:"no-store"})).json(),p=d.performance||{};metric("equity",money(d.equity));metric("totalPnl",money(d.total_pnl),d.total_pnl);metric("totalReturn",pct(d.total_return_pct),d.total_return_pct);metric("realized",money(d.realized_pnl),d.realized_pnl);metric("unrealized",money(d.unrealized_pnl),d.unrealized_pnl);metric("winRate",pct(p.win_rate_pct));metric("closedTrades",String(p.closed_trades||0));metric("wins",String(p.winning_trades||0));metric("losses",String(p.losing_trades||0));metric("grossProfit",money(p.gross_profit),p.gross_profit);metric("grossLoss",money(p.gross_loss),p.gross_loss);metric("profitFactor",Number.isFinite(Number(p.profit_factor))?Number(p.profit_factor).toFixed(2):"∞");renderPie(d.allocation||[]);renderOpen(d.open_positions||[]);renderClosed(d.closed_trades||[])}catch(e){console.error(e)}}refresh();setInterval(refresh,5000);
+</script></body></html>
